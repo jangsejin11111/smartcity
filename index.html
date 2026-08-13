@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H Citizen Service Multiverse</title>
+<link rel="preload" href="./font/Pretendard-Regular.otf" as="font" type="font/otf" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  @font-face{
+    font-family:"Pretendard";
+    src:url("./font/Pretendard-Regular.otf") format("opentype");
+    font-weight:400;
+    font-style:normal;
+    font-display:swap;
+  }
+  :root{
+    --bg:#d1dde2;
+    --h:#002c5f;
+    --i:#353f5f;
+    --j:#704857;
+    --k:#b34642;
+    --z:#ee3124;
+    --ink:#0d1b2a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100vw;height:100vh;overflow:hidden;background:var(--bg);
+    font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Segoe UI",'Helvetica Neue',Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  svg,button,input,#tooltip,#panel,.node-label,text.nlabel{
+    font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Segoe UI",'Helvetica Neue',Helvetica,Arial,sans-serif;}
+  svg#stage{display:block;width:100vw;height:100vh;cursor:grab;}
+  svg#stage:active{cursor:grabbing;}
+
+  /* ---------- glass HUD surface ---------- */
+  .glass{
+    background:linear-gradient(135deg,rgba(255,255,255,.52),rgba(255,255,255,.26));
+    backdrop-filter:blur(14px) saturate(1.25);
+    -webkit-backdrop-filter:blur(14px) saturate(1.25);
+    border:1px solid rgba(255,255,255,.62);
+    box-shadow:0 8px 28px rgba(0,25,55,.10), inset 0 1px 0 rgba(255,255,255,.55);
+  }
+
+  /* ---------- header ---------- */
+  #hud{position:fixed;top:32px;left:36px;z-index:10;pointer-events:none;max-width:400px;}
+  #hud h1{font-size:28px;font-weight:700;letter-spacing:-.015em;color:var(--h);line-height:1.16;}
+  #hud p.sub{font-size:12px;line-height:1.6;color:rgba(13,27,42,.40);margin-top:8px;
+    font-weight:400;letter-spacing:.015em;max-width:290px;}
+
+  /* ---------- segmented control toolbar ---------- */
+  #controls{position:fixed;top:30px;right:34px;z-index:10;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:500px;}
+  .capsule{display:flex;align-items:center;border-radius:999px;padding:4px 5px 4px 13px;
+    transition:transform .2s ease, box-shadow .2s ease;}
+  .capsule:hover{transform:translateY(-1px);
+    box-shadow:0 12px 30px rgba(0,25,55,.15), inset 0 1px 0 rgba(255,255,255,.55);}
+  .cap-icon{flex:none;opacity:.45;color:var(--h);margin-right:7px;}
+  .seg{display:flex;gap:2px;align-items:center;}
+  .seg-btn{border:none;background:transparent;font-family:inherit;cursor:pointer;
+    font-size:11px;font-weight:500;letter-spacing:.03em;color:rgba(0,44,95,.66);
+    padding:4.5px 11px;border-radius:999px;position:relative;
+    transition:background .2s ease, color .2s ease, box-shadow .2s ease;}
+  .seg-btn:hover{background:rgba(255,255,255,.65);color:var(--h);}
+  .seg-btn.active{background:var(--h);color:#fff;font-weight:700;
+    box-shadow:0 2px 10px rgba(0,44,95,.28);}
+
+  /* level buttons double as the legend: letters carry the level color */
+  .spectrum{display:flex;gap:2px;position:relative;margin-left:2px;}
+  .spectrum::after{content:"";position:absolute;left:11px;right:11px;bottom:-2.5px;
+    height:2px;border-radius:2px;pointer-events:none;
+    background:linear-gradient(90deg,#002c5f,#353f5f,#704857,#b34642,#ee3124);opacity:.32;}
+  .seg-btn.lvl{font-weight:700;}
+  .seg-btn.lvl[data-lvl="H"]{color:#002c5f;}
+  .seg-btn.lvl[data-lvl="I"]{color:#353f5f;}
+  .seg-btn.lvl[data-lvl="J"]{color:#704857;}
+  .seg-btn.lvl[data-lvl="K"]{color:#b34642;}
+  .seg-btn.lvl[data-lvl="Z"]{color:#ee3124;}
+  .seg-btn.lvl[data-lvl="H"]:hover{background:rgba(0,44,95,.10);color:#002c5f;}
+  .seg-btn.lvl[data-lvl="I"]:hover{background:rgba(53,63,95,.10);color:#353f5f;}
+  .seg-btn.lvl[data-lvl="J"]:hover{background:rgba(112,72,87,.10);color:#704857;}
+  .seg-btn.lvl[data-lvl="K"]:hover{background:rgba(179,70,66,.10);color:#b34642;}
+  .seg-btn.lvl[data-lvl="Z"]:hover{background:rgba(238,49,36,.10);color:#ee3124;}
+  .seg-btn.lvl.active{color:#fff;}
+  .seg-btn.lvl.active[data-lvl="H"]{background:#002c5f;box-shadow:0 2px 12px rgba(0,44,95,.36);}
+  .seg-btn.lvl.active[data-lvl="I"]{background:#353f5f;box-shadow:0 2px 12px rgba(53,63,95,.36);}
+  .seg-btn.lvl.active[data-lvl="J"]{background:#704857;box-shadow:0 2px 12px rgba(112,72,87,.36);}
+  .seg-btn.lvl.active[data-lvl="K"]{background:#b34642;box-shadow:0 2px 12px rgba(179,70,66,.36);}
+  .seg-btn.lvl.active[data-lvl="Z"]{background:#ee3124;box-shadow:0 2px 12px rgba(238,49,36,.36);}
+  .seg-btn.lvl.active:hover{color:#fff;}
+
+  /* minimal hover card on level letters (the legend detail) */
+  .seg-btn[data-desc]::after{content:attr(data-desc);position:absolute;top:calc(100% + 10px);
+    right:0;white-space:nowrap;padding:5px 11px;border-radius:9px;
+    font-size:10.5px;font-weight:400;letter-spacing:.02em;color:rgba(13,27,42,.82);
+    background:rgba(255,255,255,.88);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.7);box-shadow:0 6px 20px rgba(0,25,55,.13);
+    opacity:0;transform:translateY(-3px);pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;z-index:6;}
+  .seg-btn[data-desc]:hover::after{opacity:1;transform:translateY(0);}
+
+  /* secondary controls sit slightly quieter than the level row */
+  .capsule.secondary{padding:3px 4px 3px 11px;}
+  .capsule.secondary .cap-icon{opacity:.38;}
+  .capsule.secondary .seg-btn{font-size:10.5px;padding:4px 9.5px;}
+  button.icon-btn{border:none;cursor:pointer;padding:8px 9px;color:var(--h);
+    display:flex;align-items:center;justify-content:center;font-family:inherit;}
+  button.icon-btn svg{opacity:.55;transition:transform .45s cubic-bezier(.4,0,.2,1), opacity .2s;}
+  button.icon-btn:hover svg{transform:rotate(-70deg);opacity:1;}
+
+  /* ---------- tooltip ---------- */
+  #tooltip{position:fixed;pointer-events:none;z-index:30;opacity:0;transition:opacity .15s ease;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+    border:1px solid rgba(0,44,95,.15);border-radius:10px;
+    padding:10px 13px;max-width:240px;box-shadow:0 8px 30px rgba(0,25,55,.14);}
+  #tooltip .tt-label{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+  #tooltip .tt-meta{font-size:10.5px;color:rgba(13,27,42,.62);line-height:1.65;}
+  #tooltip .tt-meta b{color:rgba(13,27,42,.85);font-weight:600;}
+  #tooltip .tt-levels{margin-top:5px;display:flex;gap:4px;}
+  .tt-chip{font-size:8.5px;font-weight:600;letter-spacing:.05em;padding:2px 7px;
+    border-radius:9px;color:#fff;}
+
+  /* ---------- side panel ---------- */
+  #panel{position:fixed;top:0;right:0;height:100vh;width:300px;z-index:20;
+    background:rgba(255,255,255,.88);backdrop-filter:blur(16px);
+    border-left:1px solid rgba(0,44,95,.12);box-shadow:-12px 0 40px rgba(0,25,55,.10);
+    transform:translateX(105%);transition:transform .32s cubic-bezier(.22,.9,.3,1);
+    padding:34px 26px;overflow-y:auto;}
+  #panel.open{transform:translateX(0);}
+  #panel .pn-close{position:absolute;top:18px;right:18px;border:none;background:none;
+    font-size:16px;color:rgba(13,27,42,.5);cursor:pointer;line-height:1;padding:4px;}
+  #panel .pn-close:hover{color:var(--ink);}
+  #panel .pn-level{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;}
+  #panel h2{font-size:15px;font-weight:700;color:var(--ink);margin:7px 0 3px;line-height:1.35;}
+  #panel .pn-meta{font-size:11px;color:rgba(13,27,42,.55);margin-bottom:6px;}
+  #panel .pn-appears{display:flex;gap:4px;margin:10px 0 4px;}
+  #panel h3{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(13,27,42,.45);margin:22px 0 9px;font-weight:600;}
+  .pn-link{display:flex;align-items:center;gap:9px;padding:6px 8px;margin:0 -8px;
+    border-radius:8px;cursor:pointer;transition:background .15s;}
+  .pn-link:hover{background:rgba(0,44,95,.07);}
+  .pn-link .pl-dot{width:7px;height:7px;border-radius:50%;flex:none;}
+  .pn-link .pl-name{font-size:12px;color:var(--ink);flex:1;}
+  .pn-link .pl-rel{font-size:9px;letter-spacing:.06em;color:rgba(13,27,42,.45);
+    text-transform:uppercase;}
+
+  /* ---------- svg animations ---------- */
+  .halo-core{transform-box:fill-box;transform-origin:center;animation:corePulse 4.5s ease-in-out infinite;}
+  @keyframes corePulse{
+    0%,100%{opacity:.14;transform:scale(1);}
+    50%{opacity:.32;transform:scale(1.22);}
+  }
+  .halo-z{transform-box:fill-box;transform-origin:center;animation:breatheZ 6s ease-in-out infinite;}
+  @keyframes breatheZ{
+    0%,100%{opacity:.10;transform:scale(1);}
+    50%{opacity:.28;transform:scale(1.25);}
+  }
+  .node{cursor:pointer;}
+  .node circle.main{transition:stroke-width .18s ease;}
+  text.nlabel{pointer-events:none;user-select:none;
+    text-anchor:middle;dominant-baseline:middle;alignment-baseline:middle;
+    paint-order:stroke;stroke:#d1dde2;stroke-width:2.6px;stroke-linejoin:round;}
+  text.nlabel.inside{stroke:none;paint-order:normal;}
+
+  /* ---------- director controls (cinematic) ---------- */
+  .capsule.director{padding:4px 6px;gap:1px;}
+  .dir-btn{display:flex;align-items:center;gap:5px;border:none;background:transparent;
+    font-family:inherit;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.02em;
+    color:rgba(0,44,95,.72);padding:5px 11px;border-radius:999px;
+    transition:background .2s,color .2s,box-shadow .2s,transform .2s;}
+  .dir-btn svg{opacity:.7;flex:none;}
+  .dir-btn:hover{background:rgba(255,255,255,.7);color:var(--h);transform:translateY(-1px);}
+  .dir-btn#playBtn{color:#fff;background:var(--h);box-shadow:0 2px 12px rgba(0,44,95,.32);}
+  .dir-btn#playBtn svg{opacity:.95;}
+  .dir-btn#playBtn:hover{background:#013b7d;}
+  .dir-btn#captureBtn{color:var(--z);}
+  .dir-btn#captureBtn:hover{background:rgba(238,49,36,.12);color:var(--z);}
+
+  /* ---------- cinematic popup card ---------- */
+  #cineCard{position:fixed;z-index:25;width:290px;max-width:78vw;border-radius:14px;
+    padding:15px 17px 16px;pointer-events:none;opacity:0;transform:translateY(8px) scale(.98);
+    transition:opacity .5s ease, transform .5s cubic-bezier(.22,.9,.3,1);
+    background:linear-gradient(140deg,rgba(255,255,255,.9),rgba(255,255,255,.7));
+    backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);
+    border:1px solid rgba(255,255,255,.7);box-shadow:0 18px 50px rgba(0,25,55,.20);}
+  #cineCard.show{opacity:1;transform:translateY(0) scale(1);}
+  #cineCard .cc-level{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;}
+  #cineCard .cc-title{font-size:16px;font-weight:700;color:var(--ink);margin:4px 0 7px;line-height:1.25;}
+  #cineCard .cc-desc{font-size:12px;line-height:1.55;color:rgba(13,27,42,.72);}
+  #cineCard .cc-kw{margin-top:10px;font-size:10px;font-weight:600;letter-spacing:.03em;
+    color:rgba(0,44,95,.62);padding-top:9px;border-top:1px solid rgba(0,44,95,.10);}
+
+  /* ---------- countdown ---------- */
+  #countdown{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+    pointer-events:none;flex-direction:column;gap:14px;}
+  #countdown.show{display:flex;}
+  #countdown .cd-num{font-size:120px;font-weight:700;color:var(--h);letter-spacing:.01em;line-height:1;
+    text-shadow:0 8px 44px rgba(0,44,95,.22);}
+  #countdown .cd-num.pop{animation:cdPop .85s cubic-bezier(.2,.8,.3,1);}
+  #countdown .cd-sub{font-size:11px;letter-spacing:.32em;text-transform:uppercase;
+    color:rgba(0,44,95,.5);font-weight:600;}
+  @keyframes cdPop{0%{opacity:0;transform:scale(.6);}25%{opacity:1;transform:scale(1.05);}
+    70%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1.15);}}
+
+  /* ---------- capture / letterbox ---------- */
+  #letterbox{display:none;position:fixed;inset:0;z-index:14;pointer-events:none;}
+  body.capture #letterbox{display:block;}
+  #letterbox .lb{position:absolute;background:#c3d0d7;box-shadow:inset 0 0 32px rgba(0,25,55,.06);}
+  body.capture #controls,body.capture #cineHint,body.capture #panel,body.capture #tooltip{
+    opacity:0!important;pointer-events:none!important;}
+
+  /* ---------- citizen CTA ring ---------- */
+  .cta-ring{transform-box:fill-box;transform-origin:center;opacity:0;}
+  body.citizen-only .cta-ring{animation:ctaPulse 2.2s ease-out infinite;}
+  body.citizen-only .cta-ring.r2{animation-delay:1.1s;}
+  @keyframes ctaPulse{0%{transform:scale(1);opacity:.5;}70%{opacity:0;}100%{transform:scale(2);opacity:0;}}
+
+  /* ---------- hint ---------- */
+  #cineHint{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);z-index:12;
+    font-size:12px;letter-spacing:.02em;color:rgba(0,44,95,.62);
+    background:rgba(255,255,255,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:8px 18px;
+    box-shadow:0 6px 20px rgba(0,25,55,.10);transition:opacity .4s ease;pointer-events:none;opacity:0;}
+  #cineHint.show{opacity:1;}
+  #cineHint b{color:var(--h);font-weight:700;}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="title-block">
+    <h1>H Citizen Service Multiverse</h1>
+    <p class="sub">Hyundai / HMG services rendering future lifestyles.</p>
+  </div>
+</div>
+
+<div id="controls">
+  <div class="capsule glass">
+    <svg class="cap-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    <div class="seg" id="lvlSeg">
+      <button class="seg-btn lvl active" data-lvl="ALL">All</button>
+      <span class="spectrum">
+        <button class="seg-btn lvl" data-lvl="H" data-desc="H Level / Direct Service Catalog">H</button>
+        <button class="seg-btn lvl" data-lvl="I" data-desc="I Level / Integrated Life Bundles">I</button>
+        <button class="seg-btn lvl" data-lvl="J" data-desc="J Level / City Operation">J</button>
+        <button class="seg-btn lvl" data-lvl="K" data-desc="K Level / Symbiotic Relations">K</button>
+        <button class="seg-btn lvl" data-lvl="Z" data-desc="Z Level / Phantom Future">Z</button>
+      </span>
+    </div>
+  </div>
+  <div class="capsule glass secondary">
+    <svg class="cap-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    <div class="seg" id="lblSeg">
+      <button class="seg-btn lbl active" data-mode="major">Major</button>
+      <button class="seg-btn lbl" data-mode="all">All</button>
+      <button class="seg-btn lbl" data-mode="none">None</button>
+    </div>
+  </div>
+  <button class="capsule glass icon-btn secondary" id="resetBtn" title="Reset view &amp; layout">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+  </button>
+  <div class="capsule glass director">
+    <button class="dir-btn" id="playBtn" title="Play cinematic sequence (Citizen → H → Z)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>Play
+    </button>
+    <button class="dir-btn" id="cineResetBtn" title="Back to Citizen-only intro">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="9"/></svg>Intro
+    </button>
+    <button class="dir-btn" id="finalBtn" title="Reveal the full multiverse &amp; fit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>Final
+    </button>
+    <button class="dir-btn" id="captureBtn" title="Capture mode — 16:9 + 3s countdown, then auto-play">
+      <svg width="14" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Capture
+    </button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<div id="panel">
+  <button class="pn-close" id="panelClose">&#10005;</button>
+  <div id="panelBody"></div>
+</div>
+
+<div id="cineCard"></div>
+<div id="cineHint">Click <b>Citizen</b> to render the multiverse</div>
+<div id="letterbox"><div class="lb lb-t"></div><div class="lb lb-b"></div><div class="lb lb-l"></div><div class="lb lb-r"></div></div>
+<div id="countdown"><div class="cd-num">3</div><div class="cd-sub">Recording starts</div></div>
+
+<svg id="stage"></svg>
+
+<script>
+/* ============================================================
+   DATA — embedded from hcitizen_service_graph_data.json
+============================================================ */
+const GRAPH = {
+  nodes: [
+    { id:"citizen", label:"Citizen", level:"CORE", type:"core", domain:"Human", radius:42 },
+
+    { id:"moving_space", label:"Moving Space", level:"H", type:"service", domain:"Space", radius:30 },
+    { id:"mobility_concierge", label:"Mobility Concierge", level:"H", type:"service", domain:"Mobility", radius:32 },
+    { id:"energy_wallet", label:"Energy Wallet", level:"H", type:"service", domain:"Energy", radius:25 },
+    { id:"robot_task_market", label:"Robot Task Market", level:"H", type:"service", domain:"Robot", radius:28 },
+    { id:"logistics_vein", label:"Logistics Vein", level:"H", type:"service", domain:"Logistics", radius:27 },
+    { id:"care_route", label:"Care Route", level:"H", type:"service", domain:"Care", radius:27 },
+    { id:"civic_program_release", label:"Civic Program Release", level:"H", type:"service", domain:"Civic", radius:29 },
+    { id:"city_feedback_digital_twin", label:"City Feedback / Digital Twin", level:"H", type:"service", domain:"Feedback", radius:31 },
+
+    { id:"pbv", label:"PBV", level:"H", type:"solution", domain:"Mobility", radius:12, appearsIn:["H","I","J","K","Z"] },
+    { id:"modular_vehicle", label:"Modular Vehicle", level:"H", type:"solution", domain:"Space", radius:10, appearsIn:["H","Z"] },
+    { id:"smart_mobility_service", label:"Smart Mobility Service", level:"H", type:"solution", domain:"Mobility", radius:10 },
+    { id:"mobile_clinic", label:"Mobile Clinic", level:"H", type:"solution", domain:"Space", radius:10, appearsIn:["H","I","K"] },
+    { id:"mobile_store", label:"Mobile Store", level:"H", type:"solution", domain:"Space", radius:10 },
+    { id:"mobile_classroom", label:"Mobile Classroom", level:"H", type:"solution", domain:"Space", radius:10, appearsIn:["H","I"] },
+    { id:"robotaxi", label:"Robotaxi", level:"H", type:"solution", domain:"Mobility", radius:10, appearsIn:["H","J"] },
+    { id:"aam_uam", label:"AAM / UAM", level:"H", type:"solution", domain:"Mobility", radius:11, appearsIn:["H","Z"] },
+    { id:"autonomous_driving", label:"Autonomous Driving", level:"H", type:"solution", domain:"Mobility", radius:11, appearsIn:["H","J","K","Z"] },
+    { id:"maas", label:"MaaS", level:"H", type:"software", domain:"Mobility", radius:10, appearsIn:["H","J","Z"] },
+    { id:"v2x", label:"V2X", level:"H", type:"software", domain:"Mobility", radius:10 },
+    { id:"ev_charging", label:"EV Charging", level:"H", type:"solution", domain:"Energy", radius:10, appearsIn:["H","J","K"] },
+    { id:"hydrogen_refueling", label:"Hydrogen Refueling", level:"H", type:"solution", domain:"Energy", radius:10, appearsIn:["H","J"] },
+    { id:"htwo", label:"HTWO", level:"H", type:"solution", domain:"Energy", radius:11, appearsIn:["H","J","K","Z"] },
+    { id:"htwo_grid", label:"HTWO Grid", level:"H", type:"solution", domain:"Energy", radius:11, appearsIn:["H","J","K","Z"] },
+    { id:"carbon_accounting", label:"Carbon Accounting", level:"H", type:"software", domain:"Energy", radius:10, appearsIn:["H","I"] },
+    { id:"smart_energy", label:"Smart Energy", level:"H", type:"solution", domain:"Energy", radius:10, appearsIn:["H","J","Z"] },
+    { id:"delivery_robot", label:"Delivery Robot", level:"H", type:"solution", domain:"Robot", radius:10, appearsIn:["H","J"] },
+    { id:"parking_robot", label:"Parking Robot", level:"H", type:"solution", domain:"Robot", radius:10 },
+    { id:"safety_inspection_robot", label:"Safety Inspection Robot", level:"H", type:"solution", domain:"Robot", radius:10, appearsIn:["H","J"] },
+    { id:"automatic_charging_robot", label:"Automatic Charging Robot", level:"H", type:"solution", domain:"Robot", radius:10, appearsIn:["H","K"] },
+    { id:"humanoid_robot", label:"Humanoid Robot", level:"H", type:"solution", domain:"Robot", radius:10, appearsIn:["H","K","Z"] },
+    { id:"quadruped_robot", label:"Quadruped Robot", level:"H", type:"solution", domain:"Robot", radius:10, appearsIn:["H","K"] },
+    { id:"smart_logistics", label:"Smart Logistics", level:"H", type:"solution", domain:"Logistics", radius:10, appearsIn:["H","J","Z"] },
+    { id:"logistics_pbv", label:"Logistics PBV", level:"H", type:"solution", domain:"Logistics", radius:10, appearsIn:["H","J","K","Z"] },
+    { id:"automated_warehouse", label:"Automated Warehouse", level:"H", type:"solution", domain:"Logistics", radius:10, appearsIn:["H","J","Z"] },
+    { id:"last_mile_delivery_robot", label:"Last-Mile Delivery Robot", level:"H", type:"solution", domain:"Logistics", radius:10, appearsIn:["H","J","K"] },
+    { id:"warehouse_management_system", label:"Warehouse Management System", level:"H", type:"software", domain:"Logistics", radius:10 },
+    { id:"wav", label:"WAV", level:"H", type:"solution", domain:"Care", radius:10, appearsIn:["H","I"] },
+    { id:"universal_mobility", label:"Universal Mobility", level:"H", type:"solution", domain:"Care", radius:10, appearsIn:["H","I","K"] },
+    { id:"autonomous_shuttle", label:"Autonomous Shuttle", level:"H", type:"solution", domain:"Care", radius:10, appearsIn:["H","J"] },
+    { id:"emergency_mobility_service", label:"Emergency Mobility Service", level:"H", type:"solution", domain:"Care", radius:10, appearsIn:["H","I","K"] },
+    { id:"robot_guide", label:"Robot Guide", level:"H", type:"solution", domain:"Care", radius:10, appearsIn:["H","I","K"] },
+    { id:"mobile_cultural_space", label:"Mobile Cultural Space", level:"H", type:"solution", domain:"Civic", radius:10, appearsIn:["H","I","J"] },
+    { id:"smart_infrastructure", label:"Smart Infrastructure", level:"H", type:"solution", domain:"Civic", radius:10, appearsIn:["H","J"] },
+    { id:"data_hub", label:"Data Hub", level:"H", type:"software", domain:"Feedback", radius:10, appearsIn:["H","I","J","Z"] },
+    { id:"iot", label:"IoT", level:"H", type:"software", domain:"Feedback", radius:10, appearsIn:["H","J","K","Z"] },
+    { id:"digital_twin", label:"Digital Twin", level:"H", type:"software", domain:"Feedback", radius:11, appearsIn:["H","J","K","Z"] },
+    { id:"fleet_service_management", label:"Fleet Service Management", level:"H", type:"software", domain:"Feedback", radius:10, appearsIn:["H","J"] },
+    { id:"predictive_maintenance", label:"Predictive Maintenance", level:"H", type:"software", domain:"Feedback", radius:10, appearsIn:["H","J","K"] },
+
+    { id:"seamless_day_plan", label:"Seamless Day Plan", level:"I", type:"bundle", domain:"Life", radius:24 },
+    { id:"mobile_domestic_unit", label:"Mobile Domestic Unit", level:"I", type:"bundle", domain:"Space", radius:25 },
+    { id:"care_mobility_bundle", label:"Care Mobility Bundle", level:"I", type:"bundle", domain:"Care", radius:25 },
+    { id:"cultural_route_package", label:"Cultural Route Package", level:"I", type:"bundle", domain:"Civic", radius:24 },
+    { id:"invisible_logistics_layer", label:"Invisible Logistics Layer", level:"I", type:"bundle", domain:"Logistics", radius:25 },
+    { id:"urban_status_dashboard", label:"Urban Status Dashboard", level:"I", type:"bundle", domain:"Feedback", radius:24 },
+
+    { id:"fleet_swarm_control", label:"Fleet Swarm Control", level:"J", type:"operation", domain:"Mobility", radius:23 },
+    { id:"demand_responsive_city", label:"Demand Responsive City", level:"J", type:"operation", domain:"Mobility", radius:24 },
+    { id:"robotic_labor_cloud", label:"Robotic Labor Cloud", level:"J", type:"operation", domain:"Robot", radius:24 },
+    { id:"logistics_circulatory_system", label:"Logistics Circulatory System", level:"J", type:"operation", domain:"Logistics", radius:25 },
+    { id:"energy_load_balancer", label:"Energy Load Balancer", level:"J", type:"operation", domain:"Energy", radius:24 },
+    { id:"public_program_scheduler", label:"Public Program Scheduler", level:"J", type:"operation", domain:"Civic", radius:24 },
+    { id:"urban_digital_twin_loop", label:"Urban Digital Twin Loop", level:"J", type:"operation", domain:"Feedback", radius:25 },
+    { id:"pleos_fleet", label:"Pleos Fleet", level:"J", type:"software", domain:"Mobility", radius:10 },
+    { id:"sdv", label:"SDV", level:"J", type:"software", domain:"Mobility", radius:10, appearsIn:["J","K","Z"] },
+    { id:"sdx", label:"SDx", level:"J", type:"software", domain:"Software", radius:10, appearsIn:["J","Z"] },
+    { id:"demand_responsive_transit", label:"Demand Responsive Transit", level:"J", type:"software", domain:"Mobility", radius:10 },
+    { id:"hmgics", label:"HMGICS", level:"J", type:"infrastructure", domain:"Factory", radius:10, appearsIn:["J","K"] },
+    { id:"agv_amr", label:"AGV / AMR", level:"J", type:"robotics", domain:"Robot", radius:10 },
+
+    { id:"human_robot_cohabitation", label:"Human-Robot Cohabitation", level:"K", type:"symbiotic", domain:"Robot", radius:24 },
+    { id:"plant_sensing_ecology", label:"Plant-Sensing Ecology", level:"K", type:"symbiotic", domain:"Ecology", radius:24 },
+    { id:"object_mobility_rights", label:"Object Mobility Rights", level:"K", type:"symbiotic", domain:"Object", radius:24 },
+    { id:"ambient_care_habitat", label:"Ambient Care Habitat", level:"K", type:"symbiotic", domain:"Care", radius:24 },
+    { id:"symbiotic_energy_field", label:"Symbiotic Energy Field", level:"K", type:"symbiotic", domain:"Energy", radius:24 },
+    { id:"nonhuman_civic_program", label:"Nonhuman Civic Program", level:"K", type:"symbiotic", domain:"Civic", radius:24 },
+    { id:"distributed_body_interface", label:"Distributed Body Interface", level:"K", type:"symbiotic", domain:"Body", radius:24 },
+    { id:"mobed", label:"MobED", level:"K", type:"robotics", domain:"Robot", radius:10, appearsIn:["K","Z"] },
+    { id:"spot", label:"Spot", level:"K", type:"robotics", domain:"Robot", radius:10, appearsIn:["K","Z"] },
+    { id:"atlas", label:"Atlas", level:"K", type:"robotics", domain:"Robot", radius:10, appearsIn:["K","Z"] },
+    { id:"stretch", label:"Stretch", level:"K", type:"robotics", domain:"Robot", radius:10, appearsIn:["K","Z"] },
+    { id:"orbit_ai", label:"Orbit AI", level:"K", type:"software", domain:"Robot", radius:10, appearsIn:["K","Z"] },
+    { id:"hmgics_smart_farm", label:"HMGICS Smart Farm", level:"K", type:"ecology", domain:"Ecology", radius:10 },
+    { id:"xble_shoulder", label:"X-ble Shoulder", level:"K", type:"wearable", domain:"Body", radius:10 },
+    { id:"pbv_infotainment", label:"PBV Infotainment", level:"K", type:"software", domain:"Space", radius:10 },
+    { id:"waste_to_hydrogen", label:"Waste-to-Hydrogen", level:"K", type:"energy", domain:"Energy", radius:10, appearsIn:["K","Z"] },
+    { id:"plastic_to_hydrogen", label:"Plastic-to-Hydrogen", level:"K", type:"energy", domain:"Energy", radius:10, appearsIn:["K","Z"] },
+    { id:"v2l", label:"V2L", level:"K", type:"energy", domain:"Energy", radius:10, appearsIn:["K","Z"] },
+
+    { id:"post_route_life", label:"Post-Route Life", level:"Z", type:"phantom", domain:"Mobility", radius:22 },
+    { id:"vehicle_as_city_organ", label:"Vehicle-as-City Organ", level:"Z", type:"phantom", domain:"Space", radius:23 },
+    { id:"autonomous_civic_body", label:"Autonomous Civic Body", level:"Z", type:"phantom", domain:"Robot", radius:23 },
+    { id:"energy_weather", label:"Energy Weather", level:"Z", type:"phantom", domain:"Energy", radius:22 },
+    { id:"invisible_logistics_dream", label:"Invisible Logistics Dream", level:"Z", type:"phantom", domain:"Logistics", radius:23 },
+    { id:"care_without_request", label:"Care Without Request", level:"Z", type:"phantom", domain:"Care", radius:23 },
+    { id:"unrendered_citizen", label:"Unrendered Citizen", level:"Z", type:"phantom", domain:"Feedback", radius:23 },
+    { id:"phantom_update", label:"Phantom Update", level:"Z", type:"phantom", domain:"Software", radius:22 }
+  ],
+  links: [
+    { source:"citizen", target:"moving_space", level:"H", relation:"access" },
+    { source:"citizen", target:"mobility_concierge", level:"H", relation:"access" },
+    { source:"citizen", target:"energy_wallet", level:"H", relation:"access" },
+    { source:"citizen", target:"robot_task_market", level:"H", relation:"access" },
+    { source:"citizen", target:"logistics_vein", level:"H", relation:"access" },
+    { source:"citizen", target:"care_route", level:"H", relation:"access" },
+    { source:"citizen", target:"civic_program_release", level:"H", relation:"access" },
+    { source:"citizen", target:"city_feedback_digital_twin", level:"H", relation:"access" },
+
+    { source:"moving_space", target:"pbv", level:"H", relation:"contains" },
+    { source:"moving_space", target:"modular_vehicle", level:"H", relation:"contains" },
+    { source:"moving_space", target:"smart_mobility_service", level:"H", relation:"contains" },
+    { source:"moving_space", target:"mobile_clinic", level:"H", relation:"contains" },
+    { source:"moving_space", target:"mobile_store", level:"H", relation:"contains" },
+    { source:"moving_space", target:"mobile_classroom", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"pbv", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"robotaxi", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"aam_uam", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"autonomous_driving", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"maas", level:"H", relation:"contains" },
+    { source:"mobility_concierge", target:"v2x", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"ev_charging", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"hydrogen_refueling", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"htwo", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"htwo_grid", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"carbon_accounting", level:"H", relation:"contains" },
+    { source:"energy_wallet", target:"smart_energy", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"delivery_robot", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"parking_robot", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"safety_inspection_robot", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"automatic_charging_robot", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"humanoid_robot", level:"H", relation:"contains" },
+    { source:"robot_task_market", target:"quadruped_robot", level:"H", relation:"contains" },
+    { source:"logistics_vein", target:"smart_logistics", level:"H", relation:"contains" },
+    { source:"logistics_vein", target:"logistics_pbv", level:"H", relation:"contains" },
+    { source:"logistics_vein", target:"automated_warehouse", level:"H", relation:"contains" },
+    { source:"logistics_vein", target:"last_mile_delivery_robot", level:"H", relation:"contains" },
+    { source:"logistics_vein", target:"warehouse_management_system", level:"H", relation:"contains" },
+    { source:"care_route", target:"wav", level:"H", relation:"contains" },
+    { source:"care_route", target:"universal_mobility", level:"H", relation:"contains" },
+    { source:"care_route", target:"autonomous_shuttle", level:"H", relation:"contains" },
+    { source:"care_route", target:"emergency_mobility_service", level:"H", relation:"contains" },
+    { source:"care_route", target:"robot_guide", level:"H", relation:"contains" },
+    { source:"civic_program_release", target:"pbv", level:"H", relation:"contains" },
+    { source:"civic_program_release", target:"mobile_cultural_space", level:"H", relation:"contains" },
+    { source:"civic_program_release", target:"smart_infrastructure", level:"H", relation:"contains" },
+    { source:"civic_program_release", target:"data_hub", level:"H", relation:"contains" },
+    { source:"city_feedback_digital_twin", target:"data_hub", level:"H", relation:"contains" },
+    { source:"city_feedback_digital_twin", target:"iot", level:"H", relation:"contains" },
+    { source:"city_feedback_digital_twin", target:"digital_twin", level:"H", relation:"contains" },
+    { source:"city_feedback_digital_twin", target:"fleet_service_management", level:"H", relation:"contains" },
+    { source:"city_feedback_digital_twin", target:"predictive_maintenance", level:"H", relation:"contains" },
+
+    { source:"seamless_day_plan", target:"mobility_concierge", level:"I", relation:"bundle" },
+    { source:"seamless_day_plan", target:"energy_wallet", level:"I", relation:"bundle" },
+    { source:"seamless_day_plan", target:"city_feedback_digital_twin", level:"I", relation:"bundle" },
+    { source:"mobile_domestic_unit", target:"moving_space", level:"I", relation:"bundle" },
+    { source:"mobile_domestic_unit", target:"robot_task_market", level:"I", relation:"bundle" },
+    { source:"mobile_domestic_unit", target:"energy_wallet", level:"I", relation:"bundle" },
+    { source:"care_mobility_bundle", target:"care_route", level:"I", relation:"bundle" },
+    { source:"care_mobility_bundle", target:"mobility_concierge", level:"I", relation:"bundle" },
+    { source:"care_mobility_bundle", target:"robot_task_market", level:"I", relation:"bundle" },
+    { source:"cultural_route_package", target:"civic_program_release", level:"I", relation:"bundle" },
+    { source:"cultural_route_package", target:"moving_space", level:"I", relation:"bundle" },
+    { source:"cultural_route_package", target:"mobility_concierge", level:"I", relation:"bundle" },
+    { source:"invisible_logistics_layer", target:"logistics_vein", level:"I", relation:"bundle" },
+    { source:"invisible_logistics_layer", target:"robot_task_market", level:"I", relation:"bundle" },
+    { source:"invisible_logistics_layer", target:"city_feedback_digital_twin", level:"I", relation:"bundle" },
+    { source:"urban_status_dashboard", target:"city_feedback_digital_twin", level:"I", relation:"bundle" },
+    { source:"urban_status_dashboard", target:"energy_wallet", level:"I", relation:"bundle" },
+    { source:"urban_status_dashboard", target:"mobility_concierge", level:"I", relation:"bundle" },
+
+    { source:"fleet_swarm_control", target:"pleos_fleet", level:"J", relation:"operation" },
+    { source:"fleet_swarm_control", target:"pbv", level:"J", relation:"operation" },
+    { source:"fleet_swarm_control", target:"robotaxi", level:"J", relation:"operation" },
+    { source:"fleet_swarm_control", target:"autonomous_driving", level:"J", relation:"operation" },
+    { source:"fleet_swarm_control", target:"fleet_service_management", level:"J", relation:"operation" },
+    { source:"demand_responsive_city", target:"sdv", level:"J", relation:"operation" },
+    { source:"demand_responsive_city", target:"sdx", level:"J", relation:"operation" },
+    { source:"demand_responsive_city", target:"maas", level:"J", relation:"operation" },
+    { source:"demand_responsive_city", target:"demand_responsive_transit", level:"J", relation:"operation" },
+    { source:"robotic_labor_cloud", target:"mobed", level:"J", relation:"operation" },
+    { source:"robotic_labor_cloud", target:"spot", level:"J", relation:"operation" },
+    { source:"robotic_labor_cloud", target:"stretch", level:"J", relation:"operation" },
+    { source:"robotic_labor_cloud", target:"atlas", level:"J", relation:"operation" },
+    { source:"robotic_labor_cloud", target:"agv_amr", level:"J", relation:"operation" },
+    { source:"logistics_circulatory_system", target:"logistics_pbv", level:"J", relation:"operation" },
+    { source:"logistics_circulatory_system", target:"smart_logistics", level:"J", relation:"operation" },
+    { source:"logistics_circulatory_system", target:"automated_warehouse", level:"J", relation:"operation" },
+    { source:"logistics_circulatory_system", target:"last_mile_delivery_robot", level:"J", relation:"operation" },
+    { source:"energy_load_balancer", target:"htwo_grid", level:"J", relation:"operation" },
+    { source:"energy_load_balancer", target:"ev_charging", level:"J", relation:"operation" },
+    { source:"energy_load_balancer", target:"hydrogen_refueling", level:"J", relation:"operation" },
+    { source:"energy_load_balancer", target:"v2l", level:"J", relation:"operation" },
+    { source:"public_program_scheduler", target:"civic_program_release", level:"J", relation:"operation" },
+    { source:"public_program_scheduler", target:"mobile_cultural_space", level:"J", relation:"operation" },
+    { source:"public_program_scheduler", target:"smart_infrastructure", level:"J", relation:"operation" },
+    { source:"urban_digital_twin_loop", target:"hmgics", level:"J", relation:"operation" },
+    { source:"urban_digital_twin_loop", target:"digital_twin", level:"J", relation:"operation" },
+    { source:"urban_digital_twin_loop", target:"data_hub", level:"J", relation:"operation" },
+    { source:"urban_digital_twin_loop", target:"iot", level:"J", relation:"operation" },
+    { source:"urban_digital_twin_loop", target:"predictive_maintenance", level:"J", relation:"operation" },
+
+    { source:"human_robot_cohabitation", target:"mobed", level:"K", relation:"symbiosis" },
+    { source:"human_robot_cohabitation", target:"spot", level:"K", relation:"symbiosis" },
+    { source:"human_robot_cohabitation", target:"atlas", level:"K", relation:"symbiosis" },
+    { source:"human_robot_cohabitation", target:"stretch", level:"K", relation:"symbiosis" },
+    { source:"human_robot_cohabitation", target:"orbit_ai", level:"K", relation:"symbiosis" },
+    { source:"plant_sensing_ecology", target:"hmgics_smart_farm", level:"K", relation:"symbiosis" },
+    { source:"plant_sensing_ecology", target:"iot", level:"K", relation:"symbiosis" },
+    { source:"plant_sensing_ecology", target:"digital_twin", level:"K", relation:"symbiosis" },
+    { source:"object_mobility_rights", target:"pbv", level:"K", relation:"symbiosis" },
+    { source:"object_mobility_rights", target:"logistics_pbv", level:"K", relation:"symbiosis" },
+    { source:"object_mobility_rights", target:"last_mile_delivery_robot", level:"K", relation:"symbiosis" },
+    { source:"ambient_care_habitat", target:"care_route", level:"K", relation:"symbiosis" },
+    { source:"ambient_care_habitat", target:"universal_mobility", level:"K", relation:"symbiosis" },
+    { source:"ambient_care_habitat", target:"emergency_mobility_service", level:"K", relation:"symbiosis" },
+    { source:"ambient_care_habitat", target:"robot_guide", level:"K", relation:"symbiosis" },
+    { source:"symbiotic_energy_field", target:"htwo_grid", level:"K", relation:"symbiosis" },
+    { source:"symbiotic_energy_field", target:"waste_to_hydrogen", level:"K", relation:"symbiosis" },
+    { source:"symbiotic_energy_field", target:"plastic_to_hydrogen", level:"K", relation:"symbiosis" },
+    { source:"symbiotic_energy_field", target:"v2l", level:"K", relation:"symbiosis" },
+    { source:"nonhuman_civic_program", target:"civic_program_release", level:"K", relation:"symbiosis" },
+    { source:"nonhuman_civic_program", target:"robot_task_market", level:"K", relation:"symbiosis" },
+    { source:"nonhuman_civic_program", target:"plant_sensing_ecology", level:"K", relation:"symbiosis" },
+    { source:"distributed_body_interface", target:"sdv", level:"K", relation:"symbiosis" },
+    { source:"distributed_body_interface", target:"pbv_infotainment", level:"K", relation:"symbiosis" },
+    { source:"distributed_body_interface", target:"xble_shoulder", level:"K", relation:"symbiosis" },
+    { source:"distributed_body_interface", target:"mobed", level:"K", relation:"symbiosis" },
+
+    { source:"post_route_life", target:"mobility_concierge", level:"Z", relation:"phantom" },
+    { source:"post_route_life", target:"aam_uam", level:"Z", relation:"phantom" },
+    { source:"post_route_life", target:"autonomous_driving", level:"Z", relation:"phantom" },
+    { source:"vehicle_as_city_organ", target:"pbv", level:"Z", relation:"phantom" },
+    { source:"vehicle_as_city_organ", target:"moving_space", level:"Z", relation:"phantom" },
+    { source:"vehicle_as_city_organ", target:"sdv", level:"Z", relation:"phantom" },
+    { source:"vehicle_as_city_organ", target:"modular_vehicle", level:"Z", relation:"phantom" },
+    { source:"autonomous_civic_body", target:"robot_task_market", level:"Z", relation:"phantom" },
+    { source:"autonomous_civic_body", target:"atlas", level:"Z", relation:"phantom" },
+    { source:"autonomous_civic_body", target:"spot", level:"Z", relation:"phantom" },
+    { source:"autonomous_civic_body", target:"mobed", level:"Z", relation:"phantom" },
+    { source:"energy_weather", target:"htwo_grid", level:"Z", relation:"phantom" },
+    { source:"energy_weather", target:"energy_wallet", level:"Z", relation:"phantom" },
+    { source:"energy_weather", target:"smart_energy", level:"Z", relation:"phantom" },
+    { source:"invisible_logistics_dream", target:"logistics_vein", level:"Z", relation:"phantom" },
+    { source:"invisible_logistics_dream", target:"stretch", level:"Z", relation:"phantom" },
+    { source:"invisible_logistics_dream", target:"logistics_pbv", level:"Z", relation:"phantom" },
+    { source:"care_without_request", target:"care_route", level:"Z", relation:"phantom" },
+    { source:"care_without_request", target:"ambient_care_habitat", level:"Z", relation:"phantom" },
+    { source:"unrendered_citizen", target:"digital_twin", level:"Z", relation:"phantom" },
+    { source:"unrendered_citizen", target:"data_hub", level:"Z", relation:"phantom" },
+    { source:"unrendered_citizen", target:"sdx", level:"Z", relation:"phantom" },
+    { source:"phantom_update", target:"sdx", level:"Z", relation:"phantom" },
+    { source:"phantom_update", target:"city_feedback_digital_twin", level:"Z", relation:"phantom" },
+    { source:"phantom_update", target:"digital_twin", level:"Z", relation:"phantom" },
+
+    { source:"pbv", target:"vehicle_as_city_organ", level:"Z", relation:"evolution" },
+    { source:"autonomous_driving", target:"post_route_life", level:"Z", relation:"evolution" },
+    { source:"htwo_grid", target:"energy_weather", level:"Z", relation:"evolution" },
+    { source:"digital_twin", target:"unrendered_citizen", level:"Z", relation:"evolution" },
+    { source:"robot_task_market", target:"autonomous_civic_body", level:"Z", relation:"evolution" },
+    { source:"logistics_vein", target:"invisible_logistics_dream", level:"Z", relation:"evolution" }
+  ]
+};
+
+/* ============================================================
+   STYLE TABLES
+============================================================ */
+const LEVELS = {
+  CORE:{ name:"Citizen Core",                      color:"#0d1b2a", opacity:1.0,  strokeWidth:1.5,  ring:0   },
+  H:{    name:"H Level / Direct Service Catalog",  color:"#002c5f", opacity:1.0,  strokeWidth:1.45, ring:200 },
+  I:{    name:"I Level / Integrated Life Bundles", color:"#353f5f", opacity:0.92, strokeWidth:1.25, ring:360 },
+  J:{    name:"J Level / City Operation",          color:"#704857", opacity:0.84, strokeWidth:1.05, ring:510 },
+  K:{    name:"K Level / Symbiotic Relations",     color:"#b34642", opacity:0.76, strokeWidth:0.9,  ring:660 },
+  Z:{    name:"Z Level / Phantom Future",          color:"#ee3124", opacity:0.38, strokeWidth:0.7,  ring:820 }
+};
+const RELATION = {
+  access:    { dash:null,   curve:0,    widthMul:1.0, opMul:0.62 },
+  contains:  { dash:null,   curve:0,    widthMul:0.75, opMul:0.55 },
+  bundle:    { dash:"7 5",  curve:0.13, widthMul:1.05, opMul:0.65 },
+  operation: { dash:"2.5 3",curve:0.06, widthMul:1.15, opMul:0.65 },
+  symbiosis: { dash:null,   curve:0.20, widthMul:1.0, opMul:0.6 },
+  phantom:   { dash:"4 7",  curve:0.11, widthMul:0.9, opMul:0.85 },
+  evolution: { dash:null,   curve:0.30, widthMul:1.5, opMul:1.0 }
+};
+const BIG_TYPES = new Set(["core","service","bundle","operation","symbiotic","phantom"]);
+const DOMAINS = ["Human","Space","Mobility","Energy","Robot","Logistics","Care","Civic","Feedback",
+                 "Life","Software","Factory","Ecology","Object","Body"];
+
+/* subtle per-domain tint: same level hue, slightly shifted lightness */
+function nodeColor(d){
+  const base = d3.color(LEVELS[d.level].color);
+  const di = Math.max(0, DOMAINS.indexOf(d.domain));
+  const t = ((di % 5) - 2) * 0.05;                 // -0.10 .. +0.10
+  const shifted = t >= 0 ? base.brighter(t*2.2) : base.darker(-t*2.2);
+  if (BIG_TYPES.has(d.type)) return shifted.formatHex();
+  // satellites: pale fill of the level color
+  return d3.interpolateRgb(shifted.formatHex(), "#f4f7f8")(0.72);
+}
+function nodeStroke(d){
+  if (d.type === "core") return "#0d1b2a";
+  const base = d3.color(LEVELS[d.level].color);
+  const di = Math.max(0, DOMAINS.indexOf(d.domain));
+  const t = ((di % 5) - 2) * 0.05;
+  return (t >= 0 ? base.brighter(t*2.2) : base.darker(-t*2.2)).formatHex();
+}
+
+/* ============================================================
+   SETUP
+============================================================ */
+let W = window.innerWidth, Hgt = window.innerHeight;
+window.addEventListener("resize", () => { W = window.innerWidth; Hgt = window.innerHeight;
+  if (document.body.classList.contains("capture")) layoutFrame(); });
+const svg = d3.select("#stage");
+
+/* defs: glow, grain, faint grid */
+const defs = svg.append("defs");
+const glow = defs.append("filter").attr("id","glow")
+  .attr("x","-80%").attr("y","-80%").attr("width","260%").attr("height","260%");
+glow.append("feGaussianBlur").attr("stdDeviation","5.5").attr("result","b");
+const gm = glow.append("feMerge");
+gm.append("feMergeNode").attr("in","b");
+gm.append("feMergeNode").attr("in","SourceGraphic");
+
+const grain = defs.append("filter").attr("id","grain");
+grain.append("feTurbulence").attr("type","fractalNoise")
+  .attr("baseFrequency","0.9").attr("numOctaves","2").attr("stitchTiles","stitch");
+grain.append("feColorMatrix").attr("type","saturate").attr("values","0");
+grain.append("feComponentTransfer").append("feFuncA").attr("type","linear").attr("slope","0.045");
+
+const gridP = defs.append("pattern").attr("id","grid")
+  .attr("width",90).attr("height",90).attr("patternUnits","userSpaceOnUse");
+gridP.append("path").attr("d","M 90 0 L 0 0 0 90")
+  .attr("fill","none").attr("stroke","#002c5f").attr("stroke-opacity",0.045).attr("stroke-width",0.6);
+
+/* background layers */
+svg.append("rect").attr("width","100%").attr("height","100%").attr("fill","#d1dde2");
+svg.append("rect").attr("width","100%").attr("height","100%").attr("fill","url(#grid)");
+svg.append("rect").attr("width","100%").attr("height","100%")
+  .attr("filter","url(#grain)").attr("pointer-events","none");
+
+const zoomRoot = svg.append("g");
+const gLinks  = zoomRoot.append("g");
+const gNodes  = zoomRoot.append("g");
+const gLabels = zoomRoot.append("g");
+
+/* ============================================================
+   DATA PREP
+============================================================ */
+const nodes = GRAPH.nodes.map(d => Object.assign({}, d));
+const links = GRAPH.links.map(d => Object.assign({}, d));
+const byId = new Map(nodes.map(d => [d.id, d]));
+
+/* adjacency for hover / panel */
+const neighbors = new Map(nodes.map(d => [d.id, new Set()]));
+links.forEach(l => {
+  neighbors.get(l.source).add(l.target);
+  neighbors.get(l.target).add(l.source);
+});
+
+/* deterministic seeded ring layout for fast convergence */
+const perLevel = d3.group(nodes, d => d.level);
+perLevel.forEach((arr, lvl) => {
+  const R = LEVELS[lvl].ring;
+  arr.forEach((d, i) => {
+    const a = (i / arr.length) * Math.PI * 2 + (lvl.charCodeAt(0) * 0.7);
+    d.x = Math.cos(a) * (R || 1) + ((i * 37) % 23) - 11;
+    d.y = Math.sin(a) * (R || 1) + ((i * 53) % 23) - 11;
+    d._hx = d.x; d._hy = d.y;             // remembered "home" direction for the reveal
+  });
+});
+const core = byId.get("citizen");
+core.fx = 0; core.fy = 0;
+
+/* ============================================================
+   FORCES
+============================================================ */
+const sim = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink(links).id(d => d.id)
+    .distance(l => ({access:180, contains:62, bundle:150, operation:105,
+                     symbiosis:115, phantom:120, evolution:300}[l.relation] || 100))
+    .strength(l => l.relation === "evolution" ? 0.05
+              : l.relation === "phantom" ? 0.25
+              : l.relation === "contains" ? 0.6 : 0.35))
+  .force("charge", d3.forceManyBody()
+    .strength(d => BIG_TYPES.has(d.type) ? -320 : -95).distanceMax(650))
+  .force("radial", d3.forceRadial(d => LEVELS[d.level].ring, 0, 0)
+    .strength(d => d.level === "CORE" ? 1 : BIG_TYPES.has(d.type) ? 0.28 : 0.10))
+  .force("collide", d3.forceCollide(d => d.radius + 7).strength(0.85))
+  .alpha(1).alphaDecay(0.022);
+
+/* ============================================================
+   LINKS
+============================================================ */
+/* per-evolution-link gradient: source level color -> #ee3124 */
+const evoLinks = links.filter(l => l.relation === "evolution");
+evoLinks.forEach((l, i) => {
+  l._gid = "evograd" + i;
+  const g = defs.append("linearGradient")
+    .attr("id", l._gid).attr("gradientUnits","userSpaceOnUse");
+  g.append("stop").attr("offset","0%")
+    .attr("stop-color", LEVELS[byId.get(typeof l.source==="object"?l.source.id:l.source).level].color);
+  g.append("stop").attr("offset","100%").attr("stop-color","#ee3124");
+});
+
+const linkSel = gLinks.selectAll("path")
+  .data(links)
+  .join("path")
+  .attr("fill","none")
+  .attr("stroke", l => l.relation === "evolution" ? `url(#${l._gid})` : LEVELS[l.level].color)
+  .attr("stroke-width", l => LEVELS[l.level].strokeWidth * RELATION[l.relation].widthMul)
+  .attr("stroke-dasharray", l => RELATION[l.relation].dash)
+  .attr("stroke-linecap","round");
+
+function linkBaseOpacity(l){
+  const lv = LEVELS[l.level].opacity;
+  return Math.min(1, lv * RELATION[l.relation].opMul) * (l.relation === "evolution" ? 0.42 : 1);
+}
+function linkPath(l){
+  const sx=l.source.x, sy=l.source.y, tx=l.target.x, ty=l.target.y;
+  const c = RELATION[l.relation].curve;
+  if (!c) return `M${sx},${sy}L${tx},${ty}`;
+  const mx=(sx+tx)/2, my=(sy+ty)/2, dx=tx-sx, dy=ty-sy;
+  return `M${sx},${sy}Q${mx-dy*c},${my+dx*c} ${tx},${ty}`;
+}
+
+/* ============================================================
+   NODES
+============================================================ */
+const nodeSel = gNodes.selectAll("g.node")
+  .data(nodes)
+  .join("g")
+  .attr("class", d => `node level-${d.level}`);
+
+/* breathing halo — Z nodes + core pulse */
+nodeSel.filter(d => d.level === "Z").append("circle")
+  .attr("class","halo-z")
+  .attr("r", d => d.radius + 7)
+  .attr("fill","#ee3124")
+  .style("animation-delay", (d,i) => (i * 0.7) + "s");
+nodeSel.filter(d => d.type === "core").append("circle")
+  .attr("class","halo-core")
+  .attr("r", d => d.radius + 10)
+  .attr("fill","#002c5f");
+/* click-to-render CTA rings (visible only during Citizen-only intro) */
+nodeSel.filter(d => d.type === "core").each(function(d){
+  d3.select(this).append("circle").attr("class","cta-ring")
+    .attr("r", d.radius + 4).attr("fill","none").attr("stroke","#002c5f").attr("stroke-width",1.5);
+  d3.select(this).append("circle").attr("class","cta-ring r2")
+    .attr("r", d.radius + 4).attr("fill","none").attr("stroke","#002c5f").attr("stroke-width",1.5);
+});
+
+/* hover halo (hidden until hover) */
+nodeSel.append("circle")
+  .attr("class","halo-hover")
+  .attr("r", d => d.radius + 6)
+  .attr("fill", d => d.type === "core" ? "#ffffff" : LEVELS[d.level].color)
+  .attr("opacity", 0)
+  .attr("filter","url(#glow)");
+
+/* main circle */
+nodeSel.append("circle")
+  .attr("class","main")
+  .attr("r", d => d.radius)
+  .attr("fill", d => d.type === "core" ? "#ffffff" : nodeColor(d))
+  .attr("stroke", d => nodeStroke(d))
+  .attr("stroke-width", d => d.type === "core" ? 1.6 : BIG_TYPES.has(d.type) ? 1.1 : 1.2)
+  .attr("stroke-opacity", d => BIG_TYPES.has(d.type) ? 0.55 : 0.9)
+  .attr("fill-opacity", d =>
+      d.type === "core" ? 1
+    : d.type === "phantom" ? 0.34
+    : BIG_TYPES.has(d.type) ? Math.min(1, LEVELS[d.level].opacity + 0.05)
+    : 0.92);
+
+/* appearsIn arcs: multi-level services get level-colored ring segments */
+const arcGen = d3.arc();
+nodeSel.filter(d => (d.appearsIn || []).length > 1).each(function(d){
+  const g = d3.select(this);
+  const lv = d.appearsIn;
+  const gap = 0.10;
+  const span = (Math.PI*2)/lv.length;
+  lv.forEach((L, i) => {
+    g.append("path")
+      .attr("class","alv")
+      .attr("d", arcGen({
+        innerRadius: d.radius + 2.4, outerRadius: d.radius + 4.2,
+        startAngle: i*span + gap, endAngle: (i+1)*span - gap
+      }))
+      .attr("fill", LEVELS[L].color)
+      .attr("opacity", 0.75);
+  });
+});
+
+/* ============================================================
+   LABELS
+============================================================ */
+const LINE_H = 1.08;          // em
+const CHAR_W = 0.56;          // avg glyph width as a fraction of font-size
+
+function wrapLabel(label, maxChars){
+  const words = label.replace(/\s*\/\s*/g, " / ").split(/\s+/);
+  const lines = []; let cur = "";
+  words.forEach(w => {
+    const cand = cur ? cur + " " + w : w;
+    if (cand.length > maxChars && cur){ lines.push(cur); cur = w; }
+    else cur = cand;
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+/* shrink font until the label fits the circle in <= 3 lines; last resort: ellipsis */
+function fitLabel(label, r, baseFs){
+  const usable = 2 * (r - 2.5);
+  for (let fs = baseFs; fs >= 7.5; fs -= 0.5){
+    const maxChars = Math.max(4, Math.floor(usable / (fs * CHAR_W)));
+    const lines = wrapLabel(label, maxChars);
+    if (lines.length <= 3 && lines.every(l => l.length <= maxChars + 1))
+      return { fs, lines };
+  }
+  const maxChars = Math.max(4, Math.floor(usable / (7.5 * CHAR_W)));
+  const full = wrapLabel(label, maxChars);
+  const lines = full.slice(0, 3);
+  if (full.length > 3)
+    lines[2] = lines[2].slice(0, Math.max(1, maxChars - 1)) + "…";
+  return { fs: 7.5, lines };
+}
+/* centered tspan block: first dy pulls the block up by half its height */
+function setCenteredLines(t, lines){
+  const startDy = -((lines.length - 1) / 2) * LINE_H;
+  t.selectAll("tspan").data(lines).join("tspan")
+    .attr("x", 0)
+    .attr("dy", (ln, i) => i === 0 ? `${startDy}em` : `${LINE_H}em`)
+    .text(ln => ln);
+}
+
+const labelSel = gLabels.selectAll("text")
+  .data(nodes)
+  .join("text")
+  .attr("text-anchor","middle")
+  .attr("dominant-baseline","middle")
+  .attr("pointer-events","none")
+  .each(function(d){
+    const t = d3.select(this);
+    const big = BIG_TYPES.has(d.type);
+    d._big = big;
+    if (d.type === "core"){
+      t.attr("class","nlabel inside")
+       .style("font-size","18px").style("font-weight",700)
+       .style("letter-spacing",".01em")
+       .attr("fill","#0d1b2a");
+      setCenteredLines(t, [d.label]);
+    } else if (big){
+      const baseFs = d.radius >= 27 ? 11 : 10;
+      const { fs, lines } = fitLabel(d.label, d.radius, baseFs);
+      const phantom = d.type === "phantom";
+      t.attr("class", phantom ? "nlabel" : "nlabel inside")
+       .style("font-size", fs + "px").style("font-weight",700)
+       .style("letter-spacing",".01em")
+       .attr("fill", phantom ? "#c2170b" : "#ffffff");
+      if (phantom) t.style("stroke-width","2.2px");
+      setCenteredLines(t, lines);
+    } else {
+      /* micro nodes: dot only — label sits below, revealed on hover / "All labels" */
+      t.attr("class","nlabel")
+       .style("font-size","8.5px").style("font-weight",500)
+       .attr("fill","#22344a")
+       .append("tspan").attr("x",0).attr("dy", d.radius + 11).text(d.label);
+    }
+  });
+
+/* ============================================================
+   STATE + RENDER REFRESH
+============================================================ */
+let state = { filter:"ALL", hover:null, focus:null, labelMode:"major", legendHover:null };
+
+/* cinematic reveal state — gates node/link visibility during the auto sequence */
+const cine = { active:false, revealed:new Set(), focus:null, path:new Set() };
+
+/* legend hover previews a level without committing the filter */
+function activeLevel(){ return state.legendHover || state.filter; }
+function inFilter(d){
+  const f = activeLevel();
+  if (f === "ALL" || d.level === "CORE") return true;
+  if (d.level === f) return true;
+  return (d.appearsIn || []).includes(f);
+}
+function isRelated(d, anchor){
+  return d.id === anchor.id || neighbors.get(anchor.id).has(d.id);
+}
+function levelShown(lv){ return lv === "CORE" || cine.revealed.has(lv); }
+function refresh(){
+  const cineOn = cine.active;
+  const anchor = cineOn ? cine.focus : (state.hover || state.focus);
+  const anchorId = anchor ? anchor.id : null;
+
+  nodeSel.each(function(d){
+    let vis;
+    if (cineOn){
+      const shown = levelShown(d.level);
+      let base = shown ? (d.type === "core" ? 1 : LEVELS[d.level].opacity) : 0;
+      if (anchor && shown){
+        const rel = d.id === anchor.id || isRelated(d, anchor) || cine.path.has(d.id);
+        base *= rel ? 1.15 : 0.12;
+      }
+      vis = Math.min(1, base);
+    } else {
+      const base = d.type === "core" ? 1 : LEVELS[d.level].opacity;
+      let f = inFilter(d) ? 1 : 0.05;
+      if (anchor) f *= isRelated(d, anchor) ? 1.15 : 0.10;
+      vis = Math.min(1, base * f);
+    }
+    d._vis = vis;
+    d3.select(this).attr("opacity", vis);
+    d3.select(this).select(".halo-hover")
+      .attr("opacity", anchorId === d.id ? 0.30 : 0);
+    d3.select(this).select("circle.main")
+      .attr("stroke-width", anchorId === d.id
+        ? (d.type === "core" ? 2.2 : 1.9)
+        : (d.type === "core" ? 1.6 : BIG_TYPES.has(d.type) ? 1.1 : 1.2));
+  });
+
+  linkSel.each(function(l){
+    let vis;
+    if (cineOn){
+      const gated = cine.revealed.has(l.level) &&
+        levelShown(l.source.level) && levelShown(l.target.level);
+      let f = gated ? 1 : 0;
+      if (anchor && gated){
+        const touches = l.source.id === anchor.id || l.target.id === anchor.id;
+        const onPath = cine.path.has(l.source.id) && cine.path.has(l.target.id);
+        f *= (touches || onPath) ? 1.9 : 0.12;
+      }
+      vis = Math.min(0.95, linkBaseOpacity(l) * f);
+    } else {
+      let f = 1;
+      if (activeLevel() !== "ALL") f *= (l.level === activeLevel()) ? 1 : 0.04;
+      if (anchor){
+        const touches = l.source.id === anchor.id || l.target.id === anchor.id;
+        f *= touches ? 1.8 : 0.06;
+      }
+      vis = Math.min(0.95, linkBaseOpacity(l) * f);
+    }
+    d3.select(this)
+      .attr("stroke-opacity", vis)
+      .attr("stroke-width", LEVELS[l.level].strokeWidth * RELATION[l.relation].widthMul *
+        (anchor && (l.source.id === anchor.id || l.target.id === anchor.id) ? 1.7 : 1));
+  });
+
+  labelSel.each(function(d){
+    let show;
+    if (cineOn){
+      if (cine.revealed.size === 0){
+        show = (d.type === "core");                 // Citizen-only: just the core label
+      } else {
+        show = levelShown(d.level) && d._big && d.type !== "phantom";
+        if (anchor){
+          if (d.id === anchor.id) show = true;        // focused node always
+          else if (isRelated(d, anchor) && d._big) show = true;
+          else if (cine.path.has(d.id) && d._big) show = true;
+        }
+      }
+    } else {
+      show = state.labelMode === "all" ? true
+           : state.labelMode === "major" ? (d._big && d.type !== "phantom") : false;
+      if (anchor && isRelated(d, anchor)) show = true;
+    }
+    const op = show ? (d._big ? 1 : 0.85) : 0;
+    d3.select(this).attr("opacity", op * (d._vis > 0.15 ? 1 : d._vis * 4));
+  });
+}
+
+/* ============================================================
+   TICK
+============================================================ */
+sim.on("tick", () => {
+  linkSel.attr("d", linkPath);
+  nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+  labelSel.attr("transform", d => `translate(${d.x},${d.y})`);
+  evoLinks.forEach(l => {
+    d3.select("#" + l._gid)
+      .attr("x1", l.source.x).attr("y1", l.source.y)
+      .attr("x2", l.target.x).attr("y2", l.target.y);
+  });
+});
+
+/* ============================================================
+   ZOOM / PAN
+============================================================ */
+let userNavigated = false;
+const zoom = d3.zoom().scaleExtent([0.18, 4])
+  .on("zoom", ev => {
+    if (ev.sourceEvent) userNavigated = true;
+    zoomRoot.attr("transform", ev.transform);
+  });
+const initialT = d3.zoomIdentity.translate(W/2, Hgt/2).scale(
+  Math.min(W, Hgt) / 1950
+);
+svg.call(zoom).call(zoom.transform, initialT);
+svg.on("dblclick.zoom", null);
+
+function zoomToFit(duration = 800){
+  const pad = 70;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach(d => {
+    minX = Math.min(minX, d.x - d.radius); maxX = Math.max(maxX, d.x + d.radius);
+    minY = Math.min(minY, d.y - d.radius); maxY = Math.max(maxY, d.y + d.radius);
+  });
+  minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+  const k = Math.min(1.15, 0.95 * Math.min(W / (maxX - minX), Hgt / (maxY - minY)));
+  const t = d3.zoomIdentity
+    .translate(W/2 - k * (minX + maxX)/2, Hgt/2 - k * (minY + maxY)/2)
+    .scale(k);
+  svg.transition().duration(duration).call(zoom.transform, t);
+}
+/* auto-fit once the layout settles, unless the user already navigated */
+let fitted = false;
+function autoFit(){ if (cine.active) return; if (!fitted && !userNavigated){ fitted = true; zoomToFit(900); } }
+sim.on("end", autoFit);
+setTimeout(autoFit, 2600);
+
+/* ============================================================
+   DRAG
+============================================================ */
+let dragMoved = false, dragStart = [0,0];
+nodeSel.call(d3.drag()
+  .on("start", (ev, d) => {
+    dragMoved = false; dragStart = [ev.x, ev.y];
+    if (cine.active) return;                       // no node dragging mid-cinematic
+    if (!ev.active) sim.alphaTarget(0.25).restart();
+    d.fx = d.x; d.fy = d.y;
+  })
+  .on("drag", (ev, d) => {
+    if (Math.hypot(ev.x - dragStart[0], ev.y - dragStart[1]) > 4) dragMoved = true;
+    if (cine.active) return;
+    d.fx = ev.x; d.fy = ev.y;
+  })
+  .on("end", (ev, d) => {
+    if (cine.active){
+      // a tap (no drag) on Citizen during the intro renders the multiverse
+      if (!dragMoved && d.id === "citizen" && cine.revealed.size === 0) playSequence();
+      return;
+    }
+    if (!ev.active) sim.alphaTarget(0);
+    if (d.id !== "citizen"){ d.fx = null; d.fy = null; }
+  }));
+
+/* ============================================================
+   HOVER + TOOLTIP
+============================================================ */
+const tooltip = d3.select("#tooltip");
+function chip(L){
+  return `<span class="tt-chip" style="background:${LEVELS[L].color};opacity:${Math.max(.55,LEVELS[L].opacity)}">${L}</span>`;
+}
+nodeSel
+  .on("mouseenter", (ev, d) => {
+    state.hover = d; refresh();
+    tooltip.style("opacity", 1).html(`
+      <div class="tt-label">${d.label}</div>
+      <div class="tt-meta">
+        <b>Level</b>&ensp;${d.level === "CORE" ? "Core" : LEVELS[d.level].name}<br>
+        <b>Type</b>&ensp;${d.type}&emsp;<b>Domain</b>&ensp;${d.domain}<br>
+        <b>Connections</b>&ensp;${neighbors.get(d.id).size}
+      </div>
+      ${(d.appearsIn||[]).length > 1
+        ? `<div class="tt-levels">${d.appearsIn.map(chip).join("")}</div>` : ""}`);
+  })
+  .on("mousemove", ev => {
+    const x = Math.min(ev.clientX + 16, W - 260);
+    const y = Math.min(ev.clientY + 14, Hgt - 130);
+    tooltip.style("left", x + "px").style("top", y + "px");
+  })
+  .on("mouseleave", () => {
+    state.hover = null; refresh();
+    tooltip.style("opacity", 0);
+  })
+  .on("click", (ev, d) => {
+    ev.stopPropagation();
+    // Citizen is the "click to render" trigger during the intro (also handled in drag-end)
+    if (d.id === "citizen" && cine.active && cine.revealed.size === 0){ playSequence(); return; }
+    if (cine.active) return;                 // otherwise ignore stray clicks mid-cinematic
+    state.focus = (state.focus && state.focus.id === d.id) ? null : d;
+    state.focus ? openPanel(d) : closePanel();
+    refresh();
+  });
+svg.on("click", () => {
+  if (state.focus){ state.focus = null; closePanel(); refresh(); }
+});
+
+/* ============================================================
+   SIDE PANEL
+============================================================ */
+const panel = document.getElementById("panel");
+const panelBody = document.getElementById("panelBody");
+document.getElementById("panelClose").onclick = () => {
+  state.focus = null; closePanel(); refresh();
+};
+function closePanel(){ panel.classList.remove("open"); }
+function openPanel(d){
+  const conns = links
+    .filter(l => l.source.id === d.id || l.target.id === d.id)
+    .map(l => {
+      const other = l.source.id === d.id ? l.target : l.source;
+      return { other, rel:l.relation, lvl:l.level };
+    })
+    .sort((a,b) => a.lvl.localeCompare(b.lvl));
+  panelBody.innerHTML = `
+    <div class="pn-level" style="color:${LEVELS[d.level].color}">
+      ${d.level === "CORE" ? "Citizen Core" : LEVELS[d.level].name}</div>
+    <h2>${d.label}</h2>
+    <div class="pn-meta">${d.type} &middot; ${d.domain}</div>
+    ${(d.appearsIn||[]).length > 1
+      ? `<div class="pn-appears">${d.appearsIn.map(chip).join("")}</div>
+         <div class="pn-meta" style="margin-top:2px">Appears across ${d.appearsIn.length} levels — cross-level service</div>` : ""}
+    <h3>Connections (${conns.length})</h3>
+    ${conns.map((c,i) => `
+      <div class="pn-link" data-id="${c.other.id}">
+        <span class="pl-dot" style="background:${LEVELS[c.lvl].color};opacity:${Math.max(.5,LEVELS[c.lvl].opacity)}"></span>
+        <span class="pl-name">${c.other.label}</span>
+        <span class="pl-rel">${c.rel}</span>
+      </div>`).join("")}`;
+  panelBody.querySelectorAll(".pn-link").forEach(el => {
+    el.onclick = () => {
+      const n = byId.get(el.dataset.id);
+      state.focus = n; openPanel(n); refresh();
+    };
+  });
+  panel.classList.add("open");
+}
+
+/* ============================================================
+   CONTROLS — segmented capsules
+   (the level buttons double as the legend: hovering one
+    previews that level in the graph without committing)
+============================================================ */
+document.querySelectorAll("button.lvl").forEach(btn => {
+  btn.onclick = () => {
+    if (cine.active) revealAllInstant();      // a manual filter takes over from the cinematic run
+    document.querySelectorAll("button.lvl").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.filter = btn.dataset.lvl;
+    refresh();
+  };
+  btn.onmouseenter = () => { if (cine.active) return; state.legendHover = btn.dataset.lvl; refresh(); };
+  btn.onmouseleave = () => { if (cine.active) return; state.legendHover = null; refresh(); };
+});
+document.querySelectorAll("#lblSeg .seg-btn").forEach(btn => {
+  btn.onclick = () => {
+    if (cine.active) revealAllInstant();
+    document.querySelectorAll("#lblSeg .seg-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.labelMode = btn.dataset.mode;
+    refresh();
+  };
+});
+/* icon reset button = quick "reveal everything & fit" (exits any cinematic run) */
+document.getElementById("resetBtn").onclick = () => finalView();
+
+/* ============================================================
+   CINEMATIC AUTO-ANIMATION  (capture-friendly state machine)
+   states: citizenOnly → revealH → focusH → revealI → focusI →
+           revealJ → focusJ → revealK → focusK → revealZ →
+           focusZ → finalZoomOut → (hand back to normal mode)
+============================================================ */
+let cineTimers = [];
+function later(ms, fn){ const id = setTimeout(fn, ms); cineTimers.push(id); return id; }
+function cancelSequence(){
+  cineTimers.forEach(clearTimeout); cineTimers = [];
+  svg.interrupt("cam"); linkSel.interrupt("draw");
+}
+
+/* representative close-up copy (kept short for on-screen reading) */
+const REP_INFO = {
+  mobility_concierge:{ desc:"Coordinates PBV, robotaxi, AAM and autonomous mobility into one route layer.", kw:"PBV · AAM/UAM · Robotaxi · V2X" },
+  moving_space:{ desc:"Turns vehicles into modular rooms — clinic, store and classroom on the move.", kw:"PBV · Modular Vehicle · Mobile Clinic" },
+  energy_wallet:{ desc:"One account for charging, hydrogen and carbon across the city.", kw:"EV Charging · HTWO · HTWO Grid · Carbon" },
+  robot_task_market:{ desc:"An on-demand marketplace of delivery, parking and humanoid robots.", kw:"Delivery · Humanoid · Quadruped" },
+  seamless_day_plan:{ desc:"Bundles concierge, energy and city feedback into one daily flow.", kw:"Concierge · Energy Wallet · Digital Twin" },
+  mobile_domestic_unit:{ desc:"A living space that drives to you — home as mobility.", kw:"Moving Space · Robots · Energy" },
+  care_mobility_bundle:{ desc:"Care-first travel linking WAV, concierge and robot assistance.", kw:"Care Route · Concierge · Robots" },
+  fleet_swarm_control:{ desc:"Orchestrates PBV, robotaxi and autonomous fleets as one swarm.", kw:"Pleos Fleet · PBV · Robotaxi" },
+  robotic_labor_cloud:{ desc:"Pools MobED, Spot, Atlas and Stretch into city-scale labor.", kw:"MobED · Spot · Atlas · Stretch" },
+  urban_digital_twin_loop:{ desc:"Feeds HMGICS, IoT and Digital Twin into a live city loop.", kw:"Digital Twin · IoT · Data Hub" },
+  human_robot_cohabitation:{ desc:"Humans and robots share space through Orbit AI coordination.", kw:"MobED · Spot · Atlas · Orbit AI" },
+  plant_sensing_ecology:{ desc:"Smart-farm sensing gives plants a civic voice.", kw:"Smart Farm · IoT · Digital Twin" },
+  distributed_body_interface:{ desc:"The body extends into SDV, wearables and robots.", kw:"SDV · X-ble · MobED" },
+  post_route_life:{ desc:"Mobility dissolves — the route itself disappears.", kw:"Concierge · AAM/UAM · Autonomous" },
+  vehicle_as_city_organ:{ desc:"The vehicle becomes a living organ of the city.", kw:"PBV · Moving Space · SDV" },
+  unrendered_citizen:{ desc:"A citizen that exists only as data — never rendered.", kw:"Digital Twin · Data Hub · SDx" },
+  phantom_update:{ desc:"The city quietly updates itself while no one is watching.", kw:"SDx · Digital Twin" }
+};
+
+/* cross-level evolution paths — highlighted when a member node is focused */
+const PATHS = [
+  ["pbv","moving_space","mobile_domestic_unit","fleet_swarm_control","vehicle_as_city_organ"],
+  ["autonomous_driving","mobility_concierge","demand_responsive_city","object_mobility_rights","post_route_life"],
+  ["htwo","htwo_grid","energy_wallet","energy_load_balancer","symbiotic_energy_field","energy_weather"],
+  ["digital_twin","city_feedback_digital_twin","urban_digital_twin_loop","plant_sensing_ecology","unrendered_citizen"],
+  ["robot_task_market","robotic_labor_cloud","human_robot_cohabitation","autonomous_civic_body"],
+  ["sdv","demand_responsive_city","distributed_body_interface","phantom_update"]
+];
+function pathsFor(id){
+  const s = new Set([id]);
+  PATHS.forEach(p => { if (p.includes(id)) p.forEach(x => s.add(x)); });
+  return s;
+}
+
+/* during the reveal, strengthen the radial pull and soften charge so rings
+   expand crisply into compact, readable bands instead of overshooting */
+const baseRadialStr = d => d.level === "CORE" ? 1 : BIG_TYPES.has(d.type) ? 0.28 : 0.10;
+const cineRadialStr = d => d.level === "CORE" ? 1 : BIG_TYPES.has(d.type) ? 0.85 : 0.60;
+const baseChargeStr = d => BIG_TYPES.has(d.type) ? -320 : -95;
+const cineChargeStr = d => BIG_TYPES.has(d.type) ? -150 : -55;
+function boostRadial(on){
+  sim.force("radial").strength(on ? cineRadialStr : baseRadialStr);
+  sim.force("charge").strength(on ? cineChargeStr : baseChargeStr).distanceMax(on ? 420 : 650);
+}
+
+function hashAngle(id){ let h = 0; for (let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i))>>>0; return (h % 360) * Math.PI/180; }
+
+/* ---------- camera ---------- */
+function captureRect(){
+  if (!document.body.classList.contains("capture")) return { x:0, y:0, w:W, h:Hgt };
+  const target = 16/9; let w=W, h=Hgt, x=0, y=0;
+  if (W/Hgt > target){ w = Hgt*target; x = (W-w)/2; } else { h = W/target; y = (Hgt-h)/2; }
+  return { x, y, w, h };
+}
+function camXform(cx, cy, k, dur){
+  const r = captureRect();
+  const tx = r.x + r.w/2 - k*cx, ty = r.y + r.h/2 - k*cy;
+  svg.transition("cam").duration(dur).ease(d3.easeCubicInOut)
+     .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+}
+function bboxOf(arr){
+  if (!arr || !arr.length) return null;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  arr.forEach(d => { x0=Math.min(x0,d.x-d.radius); y0=Math.min(y0,d.y-d.radius);
+                     x1=Math.max(x1,d.x+d.radius); y1=Math.max(y1,d.y+d.radius); });
+  return { x0, y0, x1, y1 };
+}
+function fitBBox(bb, dur, maxK){
+  if (!bb) return;
+  const r = captureRect(), pad = 64;
+  const x0=bb.x0-pad, y0=bb.y0-pad, x1=bb.x1+pad, y1=bb.y1+pad;
+  const k = Math.min(maxK || 1.15, Math.min(r.w/(x1-x0), r.h/(y1-y0)));
+  camXform((x0+x1)/2, (y0+y1)/2, k, dur);
+}
+/* frame the currently-revealed rings using known ring radii (stable during expansion).
+   the outer ring is padded generously so nodes stay in-frame while they settle. */
+function fitRevealed(dur){
+  let R = 60; cine.revealed.forEach(L => R = Math.max(R, LEVELS[L].ring));
+  R = R * 1.32 + 120;
+  fitBBox({ x0:-R, y0:-R, x1:R, y1:R }, dur, 1.1);
+}
+/* tight frame around all currently-visible nodes (used for the final zoom-out) */
+function fitVisibleNodes(dur){
+  const vis = nodes.filter(d => levelShown(d.level));
+  fitBBox(bboxOf(vis), dur, 1.05);
+}
+
+/* ---------- popup card ---------- */
+const cineCard = document.getElementById("cineCard");
+function showCard(n){
+  const info = REP_INFO[n.id] || { desc:"", kw:"" };
+  cineCard.innerHTML =
+    `<div class="cc-level" style="color:${LEVELS[n.level].color}">${LEVELS[n.level].name}</div>
+     <div class="cc-title">${n.label}</div>
+     <div class="cc-desc">${info.desc}</div>
+     ${info.kw ? `<div class="cc-kw">${info.kw}</div>` : ""}`;
+  const t = d3.zoomTransform(svg.node());
+  const sx = t.applyX(n.x), sy = t.applyY(n.y), r = captureRect();
+  const cap = document.body.classList.contains("capture");
+  const topInset = cap ? 60 : 104;                 // keep clear of title / control bar
+  const cw = 300, ch = 150;
+  let left = sx + n.radius*t.k + 24;
+  if (left + cw > r.x + r.w) left = sx - n.radius*t.k - 24 - (cw - 10);   // flip to the left
+  left = Math.max(r.x + 16, Math.min(left, r.x + r.w - cw - 6));
+  const top = Math.max(r.y + topInset, Math.min(sy - 46, r.y + r.h - ch - 20));
+  cineCard.style.left = left + "px"; cineCard.style.top = top + "px";
+  cineCard.classList.add("show");
+}
+function hideCard(){ cineCard.classList.remove("show"); }
+
+/* ---------- edge draw-in animation ---------- */
+function drawLevelLinks(L){
+  linkSel.filter(l => l.level === L).each(function(l){
+    let len = 0; try { len = this.getTotalLength(); } catch(e){}
+    if (!len) return;
+    const dash = RELATION[l.relation].dash;
+    d3.select(this).interrupt("draw")
+      .attr("stroke-dasharray", len + " " + len)
+      .attr("stroke-dashoffset", len)
+      .transition("draw").duration(820).ease(d3.easeCubicInOut)
+      .attr("stroke-dashoffset", 0)
+      .on("end", function(){ d3.select(this).attr("stroke-dasharray", dash).attr("stroke-dashoffset", null); });
+  });
+}
+
+/* ---------- state transitions ---------- */
+function setHint(on){ document.getElementById("cineHint").classList.toggle("show",
+  on && !document.body.classList.contains("capture")); }
+
+function enterCitizenOnly(cameraDur){
+  cancelSequence();
+  cine.active = true; cine.revealed = new Set(); cine.focus = null; cine.path = new Set();
+  hideCard(); closePanel();
+  nodes.forEach(d => {
+    if (d.id !== "citizen"){
+      // park hidden nodes ~30% along their home direction so the reveal springs
+      // outward but each ring (esp. far Z) still settles well within its window
+      const hx = (d._hx !== undefined) ? d._hx : Math.cos(hashAngle(d.id))*40;
+      const hy = (d._hy !== undefined) ? d._hy : Math.sin(hashAngle(d.id))*40;
+      d.x = hx*0.30; d.y = hy*0.30; d.vx = 0; d.vy = 0; d.fx = d.x; d.fy = d.y;
+    }
+  });
+  boostRadial(true);
+  sim.alpha(0.15).alphaTarget(0).restart();
+  document.body.classList.add("citizen-only");
+  setHint(true);
+  camXform(0, 0, 1.25, cameraDur || 900);
+  refresh();
+}
+function revealLevel(L){
+  cine.revealed.add(L);
+  (perLevel.get(L) || []).forEach(d => { d.fx = null; d.fy = null; });
+  sim.alpha(0.85).alphaTarget(0).restart();
+  refresh();
+  later(620, () => drawLevelLinks(L));
+}
+function revealStep(L){
+  clearFocus();
+  document.body.classList.remove("citizen-only"); setHint(false);
+  revealLevel(L);
+  fitRevealed(1600);
+}
+function clearFocus(){ cine.focus = null; cine.path = new Set(); hideCard(); refresh(); }
+function focusRep(id, hold){
+  const n = byId.get(id); if (!n) return;
+  cine.focus = n; cine.path = pathsFor(id); refresh();
+  // frame the node + its local (non-core) neighbours so the close-up centres on the service
+  const cluster = [n];
+  neighbors.get(id).forEach(x => {
+    const nb = byId.get(x);
+    if (levelShown(nb.level) && nb.type !== "core") cluster.push(nb);
+  });
+  fitBBox(bboxOf(cluster), 1200, 1.7);
+  later(780, () => showCard(n));
+  later(hold, () => hideCard());
+}
+function finalizeSequence(){
+  boostRadial(false);
+  cine.active = false; fitted = true;          // keep the cinematic framing; block stray auto-fit
+  document.body.classList.remove("citizen-only"); setHint(false);
+  state.filter = "ALL"; state.legendHover = null;
+  syncLvlButtons("ALL");
+  refresh();
+}
+function syncLvlButtons(L){
+  document.querySelectorAll("button.lvl").forEach(b =>
+    b.classList.toggle("active", b.dataset.lvl === L));
+}
+
+let lastPlay = -1e9;
+function playSequence(){
+  const now = performance.now();
+  if (now - lastPlay < 500) return;          // debounce: one tap can fire click + drag-end
+  lastPlay = now;
+  cancelSequence();
+  enterCitizenOnly(700);
+  setHint(false);
+  const S = [
+    [ 600, () => revealStep("H")],
+    [2500, () => focusRep("mobility_concierge", 1500)],
+    [4000, () => revealStep("I")],
+    [6000, () => focusRep("seamless_day_plan", 1300)],
+    [7500, () => revealStep("J")],
+    [9500, () => focusRep("urban_digital_twin_loop", 1300)],
+    [11000, () => revealStep("K")],
+    [13000, () => focusRep("human_robot_cohabitation", 1300)],
+    [14500, () => revealStep("Z")],
+    [15400, () => focusRep("unrendered_citizen", 1300)],
+    [17200, () => { clearFocus(); fitRevealed(1900); }],
+    [19600, () => finalizeSequence()]
+  ];
+  S.forEach(([t, fn]) => later(t, fn));
+}
+
+/* instantly drop cinematic gating (used when the user grabs a manual filter mid-run) */
+function revealAllInstant(){
+  cancelSequence();
+  cine.revealed = new Set(["H","I","J","K","Z"]); cine.focus = null; cine.path = new Set();
+  nodes.forEach(d => { if (d.id !== "citizen"){ d.fx = null; d.fy = null; } });
+  boostRadial(false); cine.active = false; fitted = true;
+  document.body.classList.remove("citizen-only"); hideCard(); setHint(false);
+  sim.alpha(0.5).alphaTarget(0).restart();
+  later(80, () => fitRevealed(700));
+}
+
+function finalView(){
+  cancelSequence();
+  cine.active = true;
+  cine.revealed = new Set(["H","I","J","K","Z"]); cine.focus = null; cine.path = new Set();
+  hideCard(); closePanel();
+  document.body.classList.remove("citizen-only"); setHint(false);
+  nodes.forEach(d => { if (d.id !== "citizen"){ d.fx = null; d.fy = null; } });
+  boostRadial(true);
+  sim.alpha(0.6).alphaTarget(0).restart();
+  refresh();
+  ["H","I","J","K","Z"].forEach((L,i) => later(300 + i*60, () => drawLevelLinks(L)));
+  later(500, () => fitRevealed(1200));
+  later(1600, () => finalizeSequence());
+}
+
+/* ---------- countdown + capture mode ---------- */
+function layoutFrame(){
+  const lb = document.getElementById("letterbox");
+  const r = captureRect();
+  lb.querySelector(".lb-t").style.cssText = `left:0;top:0;width:100%;height:${r.y}px`;
+  lb.querySelector(".lb-b").style.cssText = `left:0;top:${r.y+r.h}px;width:100%;height:${Hgt-(r.y+r.h)}px`;
+  lb.querySelector(".lb-l").style.cssText = `left:0;top:0;width:${r.x}px;height:100%`;
+  lb.querySelector(".lb-r").style.cssText = `left:${r.x+r.w}px;top:0;width:${W-(r.x+r.w)}px;height:100%`;
+  const hud = document.getElementById("hud");
+  hud.style.left = (r.x + 30) + "px"; hud.style.top = (r.y + 26) + "px";
+}
+function runCountdown(cb){
+  const cd = document.getElementById("countdown"), num = cd.querySelector(".cd-num");
+  const seq = ["3","2","1","RENDER"];
+  cd.classList.add("show"); let i = 0;
+  (function step(){
+    if (i >= seq.length){ cd.classList.remove("show"); cb && cb(); return; }
+    num.textContent = seq[i];
+    num.style.fontSize = seq[i] === "RENDER" ? "62px" : "120px";
+    num.classList.remove("pop"); void num.offsetWidth; num.classList.add("pop");
+    i++; later(850, step);
+  })();
+}
+function enterCaptureMode(){
+  cancelSequence();
+  document.body.classList.add("capture");
+  layoutFrame();
+  enterCitizenOnly(500);
+  later(450, () => runCountdown(() => playSequence()));
+}
+function exitCapture(){
+  document.body.classList.remove("capture");
+  const hud = document.getElementById("hud"); hud.style.left = ""; hud.style.top = "";
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("capture")){ cancelSequence(); exitCapture(); }
+});
+
+/* ---------- wire director buttons ---------- */
+document.getElementById("playBtn").onclick     = () => playSequence();
+document.getElementById("finalBtn").onclick    = () => finalView();
+document.getElementById("cineResetBtn").onclick= () => enterCitizenOnly(800);
+document.getElementById("captureBtn").onclick  = () => enterCaptureMode();
+
+/* boot into the Citizen-only intro */
+enterCitizenOnly(0);
+</script>
+</body>
+</html>
